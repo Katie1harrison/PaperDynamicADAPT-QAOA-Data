@@ -108,50 +108,52 @@ import numpy as np
 
 #     return sorted_mixers
 
-def find_mixer_gradients(dens_mat, mixer_dict, pauli_dict, graph, apply_ham_unitary=True, gamma_0=0.01, noisy=False, noise_prob=0.0):
+def find_mixer_gradients(dens_mat, gradient_ops_dict, pauli_cost_list, cost_params, pauli_mixer_list, mixer_params, apply_ham_unitary=True, gamma_0=0.01, noisy=False, noise_prob=0.0):
+    
     """
     Finds the absolute values of the gradients for all mixer operators.
 
     Parameters:
         dens_mat - DensityMatrix instance for which to find the energy gradients
-        mixer_dict - Dictionary containing the mixer gradient operators for passed graph
-        gamma_0 - parameter for cut hamiltonian unitary
-        graph - Graph instance corresponding to problem at hand
+        mixer_dict - Dictionary containing the mixer gradient operators
+        pauli_cost_list - List of Pauli strings representing the cost Hamiltonian
+        cost_params - Coefficients for the cost Hamiltonian
+        pauli_mixer_list - List of Pauli strings representing the mixer Hamiltonian
+        mixer_params - Coefficients for the mixer Hamiltonian
+        gamma_0 - parameter for cut Hamiltonian unitary
     Returns:
-        sorted_mixers - sorted list of tuples containing mixer type and absolute value of its
-        gradient
+        sorted_mixers - sorted list of tuples containing mixer type and absolute value of its gradient
     """
+    
 
-    if not isinstance(graph, nx.Graph):
-        raise Exception("Error - passed graph must be instance of networkx Graph class!")
+    # if not isinstance(dens_mat, qi.DensityMatrix) and not isinstance(dens_mat, sparse._csr.csr_matrix):
+    #     raise Exception("Error - passed density matrix is not an instance of a valid correct class!")
 
-    if not isinstance(dens_mat, qi.DensityMatrix) and not isinstance(dens_mat, sparse._csr.csr_matrix):
-        raise Exception("Error - passed density matrix is not an instance of a valid correct class!")
+    # if not isinstance(mixer_dict, dict):
+    #     raise Exception("Error - passed mixers are not in a dictionary!")
 
-    if not isinstance(mixer_dict, dict):
-        raise Exception("Error - passed mixers are not in a dictionary!")
+    # Build cost Hamiltonian
+    cost_hamiltonian = build_operators.cut_hamiltonian(pauli_cost_list, cost_params)
 
+    # Apply the cost Hamiltonian if necessary
     if apply_ham_unitary and gamma_0 != 0.0:
-
-        cut_unit = build_operators.cut_unitary(graph, gamma_0, pauli_dict)
+        cut_unit = build_operators.cut_unitary(pauli_mixer_list, mixer_params, gamma_0)
         new_dens_mat = (cut_unit * dens_mat) * (cut_unit.transpose().conj())
         if noisy:
-            dens_mat = noisy_ham_unitary_evolution(dens_mat, noise_prob=noise_prob, graph=graph, pauli_dict=pauli_dict)
+            dens_mat = noisy_ham_unitary_evolution(dens_mat, noise_prob=noise_prob, pauli_cost_list=pauli_cost_list, cost_params=cost_params)
 
     else:
-
         new_dens_mat = dens_mat
 
     dict_gradients = {
-        'standard_x' : 0.0,
-        'standard_y' : 0.0
+        'standard_x': 0.0,
+        'standard_y': 0.0
     }
 
     for mixer_type in mixer_dict:
-
         dict_gradients[mixer_type] = mixer_dict[mixer_type].find_exact_gradient(new_dens_mat)
 
-        # check if mixer is a single-qubit Pauli
+        # Check if mixer is a single-qubit Pauli
         no_qubits = 0
         for letter in mixer_type:
             if letter in ['X', 'Y', 'Z']:
@@ -160,10 +162,8 @@ def find_mixer_gradients(dens_mat, mixer_dict, pauli_dict, graph, apply_ham_unit
                 break
 
         if no_qubits == 1:
-
             if mixer_type[0] == 'X':
                 dict_gradients['standard_x'] += dict_gradients[mixer_type]
-
             if mixer_type[0] == 'Y':
                 dict_gradients['standard_y'] += dict_gradients[mixer_type]
 
@@ -172,10 +172,83 @@ def find_mixer_gradients(dens_mat, mixer_dict, pauli_dict, graph, apply_ham_unit
     dict_gradients['standard_x'] = abs(dict_gradients['standard_x'])
     dict_gradients['standard_y'] = abs(dict_gradients['standard_y'])
 
-    # sort gradients by absolute value and find best mixer
+    # Sort gradients by absolute value and find best mixer
     sorted_gradients = sorted(dict_gradients.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)
 
     return sorted_gradients
+
+
+
+
+
+# def find_mixer_gradients(dens_mat, mixer_dict, pauli_dict, graph, apply_ham_unitary=True, gamma_0=0.01, noisy=False, noise_prob=0.0):
+#     """
+#     Finds the absolute values of the gradients for all mixer operators.
+
+#     Parameters:
+#         dens_mat - DensityMatrix instance for which to find the energy gradients
+#         mixer_dict - Dictionary containing the mixer gradient operators for passed graph
+#         gamma_0 - parameter for cut hamiltonian unitary
+#         graph - Graph instance corresponding to problem at hand
+#     Returns:
+#         sorted_mixers - sorted list of tuples containing mixer type and absolute value of its
+#         gradient
+#     """
+
+#     if not isinstance(graph, nx.Graph):
+#         raise Exception("Error - passed graph must be instance of networkx Graph class!")
+
+#     if not isinstance(dens_mat, qi.DensityMatrix) and not isinstance(dens_mat, sparse._csr.csr_matrix):
+#         raise Exception("Error - passed density matrix is not an instance of a valid correct class!")
+
+#     if not isinstance(mixer_dict, dict):
+#         raise Exception("Error - passed mixers are not in a dictionary!")
+
+#     if apply_ham_unitary and gamma_0 != 0.0:
+
+#         cut_unit = build_operators.cut_unitary(graph, gamma_0, pauli_dict)
+#         new_dens_mat = (cut_unit * dens_mat) * (cut_unit.transpose().conj())
+#         if noisy:
+#             dens_mat = noisy_ham_unitary_evolution(dens_mat, noise_prob=noise_prob, graph=graph, pauli_dict=pauli_dict)
+
+#     else:
+
+#         new_dens_mat = dens_mat
+
+#     dict_gradients = {
+#         'standard_x' : 0.0,
+#         'standard_y' : 0.0
+#     }
+
+#     for mixer_type in mixer_dict:
+
+#         dict_gradients[mixer_type] = mixer_dict[mixer_type].find_exact_gradient(new_dens_mat)
+
+#         # check if mixer is a single-qubit Pauli
+#         no_qubits = 0
+#         for letter in mixer_type:
+#             if letter in ['X', 'Y', 'Z']:
+#                 no_qubits += 1
+#             if no_qubits > 1:
+#                 break
+
+#         if no_qubits == 1:
+
+#             if mixer_type[0] == 'X':
+#                 dict_gradients['standard_x'] += dict_gradients[mixer_type]
+
+#             if mixer_type[0] == 'Y':
+#                 dict_gradients['standard_y'] += dict_gradients[mixer_type]
+
+#         dict_gradients[mixer_type] = abs(dict_gradients[mixer_type])
+
+#     dict_gradients['standard_x'] = abs(dict_gradients['standard_x'])
+#     dict_gradients['standard_y'] = abs(dict_gradients['standard_y'])
+
+#     # sort gradients by absolute value and find best mixer
+#     sorted_gradients = sorted(dict_gradients.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)
+
+#     return sorted_gradients
 
 # def find_mixer_gradients_new_algo(dens_mat, mixer_dict, graph):
 #     """
@@ -276,9 +349,9 @@ def find_mixer_gradients(dens_mat, mixer_dict, pauli_dict, graph, apply_ham_unit
     
 #     return execute_circ
 
-def find_optimal_cut(graph):
+def find_optimal_cut(pauli_strings, coeffs):
     """
-    Find optimal cut for passed graph using exhaustive search.
+    Find optimal cut using exhaustive search based on provided Pauli strings and coefficients.
 
     Returns:
         solution - list containing:
@@ -287,48 +360,107 @@ def find_optimal_cut(graph):
             - max Hamiltonian eigenvalue
     """
 
-    if not isinstance(graph, nx.Graph):
-        raise Exception("Error - passed graph is not instance of Graph networkx class!")
+    # Check that inputs are of the same length
+    if len(pauli_strings) != len(coeffs):
+        raise Exception("Error - The length of pauli_strings and coeffs must be the same!")
 
+    # Calculate the offset based on the coefficients
+    offset = sum(coeffs) / 4  # Adjust according to your Hamiltonian representation HOW????????????????????????????????????????????????????????
+
+    # Initialize solution
     solution = []
 
-    with warnings.catch_warnings():
-
-        warnings.simplefilter("ignore", category=FutureWarning)
-        offset = nx.adjacency_matrix(graph).sum() / 4
-    
-    for i in range(2**graph.number_of_nodes()):
-
+    # Iterate through all possible cuts
+    for i in range(2**len(pauli_strings[0])):  # Use the number of qubits
         bitstring = bin(i)[2:]
-        bitstring = '0' * (graph.number_of_nodes() - len(bitstring)) + bitstring
-        cut = evaluate_cut(graph, bitstring)
-        if len(solution) == 0:
-
-            solution = [bitstring, cut, cut - offset]
-
-        elif solution[1] < cut:
-
+        bitstring = '0' * (len(pauli_strings[0]) - len(bitstring)) + bitstring  # Zero-pad the bitstring
+        
+        # Evaluate the cut based on the given Pauli strings and coefficients
+        cut = evaluate_cut_from_pauli(pauli_strings, coeffs, bitstring)
+        
+        if len(solution) == 0 or solution[1] < cut:
             solution = [bitstring, cut, cut - offset]
 
     return solution
+    
 
-def evaluate_cut(graph, bitstring):
+# def find_optimal_cut(graph):
+#     """
+#     Find optimal cut for passed graph using exhaustive search.
+
+#     Returns:
+#         solution - list containing:
+#             - max-cut represented by bitstring
+#             - max-cut value
+#             - max Hamiltonian eigenvalue
+#     """
+
+#     if not isinstance(graph, nx.Graph):
+#         raise Exception("Error - passed graph is not instance of Graph networkx class!")
+
+#     solution = []
+
+#     with warnings.catch_warnings():
+
+#         warnings.simplefilter("ignore", category=FutureWarning)
+#         offset = nx.adjacency_matrix(graph).sum() / 4
+    
+#     for i in range(2**graph.number_of_nodes()):
+
+#         bitstring = bin(i)[2:]
+#         bitstring = '0' * (graph.number_of_nodes() - len(bitstring)) + bitstring
+#         cut = evaluate_cut(graph, bitstring)
+#         if len(solution) == 0:
+
+#             solution = [bitstring, cut, cut - offset]
+
+#         elif solution[1] < cut:
+
+#             solution = [bitstring, cut, cut - offset]
+
+#     return solution
+
+
+
+def evaluate_cut(pauli_strings, coeffs, bitstring):
     """
-    Evaluate value of cut for passed graph.
+    Evaluate the cut value based on the given Pauli strings and coefficients.
+
+    Parameters:
+        pauli_strings - list of Pauli strings
+        coeffs - list of corresponding coefficients
+        bitstring - bitstring representing the cut
+
+    Returns:
+        cut_value - the evaluated cut value
     """
+    cut_value = 0
 
-    if not isinstance(graph, nx.Graph):
-        raise Exception("Error - passed graph is not instance of Graph networkx class!")
+    # Iterate over the Pauli strings and their coefficients
+    for pauli_string, coeff in zip(pauli_strings, coeffs):
+        # Check the contribution of the Pauli string to the cut
+        if evaluate_cut_contribution(pauli_string, bitstring):
+            cut_value += coeff  # Accumulate the coefficient if the contribution is valid
 
-    cut = 0
+    return cut_value
 
-    for edge in graph.edges:
+# def evaluate_cut(graph, bitstring):
+#     """
+#     Evaluate value of cut for passed graph.
+#     """
 
-        weight = graph.get_edge_data(*edge)['weight']
-        if bitstring[int(edge[0])] != bitstring[int(edge[1])]:
-            cut += weight
+#     if not isinstance(graph, nx.Graph):
+#         raise Exception("Error - passed graph is not instance of Graph networkx class!")
 
-    return cut
+#     cut = 0
+
+#     for edge in graph.edges:
+
+#         weight = graph.get_edge_data(*edge)['weight']
+#         if bitstring[int(edge[0])] != bitstring[int(edge[1])]:
+#             cut += weight
+
+#     return cut
 
 def goemans_williamson(graph):
     """

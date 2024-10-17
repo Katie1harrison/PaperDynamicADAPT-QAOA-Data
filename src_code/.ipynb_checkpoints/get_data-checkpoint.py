@@ -57,6 +57,7 @@ def run_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, max_depth, beta_0=0
     all_mixers_per_layer_dict = {}
 
     curr_layer = 0
+    
     curr_dens_mat = build_operators.build_adapt_qaoa_ansatz(graph, mixer_params, mixer_list, ham_params, pauli_ops_dict, ham_layers)
     curr_ham_estimate = (hamiltonian * curr_dens_mat).trace().real
     cut_approx_ratio = (curr_ham_estimate + ham_offset) / max_cut_value
@@ -123,7 +124,8 @@ def run_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, max_depth, beta_0=0
         print(ham_params_string[:-2])
         curr_dens_mat = build_operators.build_adapt_qaoa_ansatz(graph, mixer_params, mixer_list, ham_params, pauli_ops_dict, ham_layers)
        
-        # print(f'this is the density matrix {curr_dens_mat}')
+        print(f'this is the density matrix type {type(curr_dens_mat)}')
+        print(f'this is the density matrix {curr_dens_mat}')
         curr_ham_estimate = (hamiltonian * curr_dens_mat).trace().real
         ham_approx_ratios.append(curr_ham_estimate)
         cut_approx_ratio = (curr_ham_estimate + ham_offset) / max_cut_value

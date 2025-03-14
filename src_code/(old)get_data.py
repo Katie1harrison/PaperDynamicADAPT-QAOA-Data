@@ -46,7 +46,7 @@ def run_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, max_depth, beta_0=0
     max_ham_value = max_cut_solution[2]
     ham_offset = max_cut_value - max_ham_value
 
-    hamiltonian = build_operators.cut_hamiltonian(graph)[0]
+    hamiltonian = build_operators.cut_hamiltonian(graph)
 
     mixer_params = []
     mixer_list = []
@@ -97,8 +97,6 @@ def run_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, max_depth, beta_0=0
         print("Optimising layer " + str(curr_layer) + "...")
         initial_parameter_guesses = mixer_params + [beta_0] + ham_params + [gamma_0]
         ham_layers.append(curr_layer)
-        # print("this is the cut_unitary",curr_layer)
-        # print("this is the mixer_unitary",ham_layers)
         print('\tInitial Parameter Guesses:', initial_parameter_guesses)
         optimiser_options = {
             'gtol' : gradient_tolerance
@@ -129,28 +127,7 @@ def run_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, max_depth, beta_0=0
         cut_approx_ratio = (curr_ham_estimate + ham_offset) / max_cut_value
         cut_approx_ratios.append(cut_approx_ratio)
         print('\nCurrent Cut Approximation Ratio:', cut_approx_ratio)
-        # print('current density matrix',curr_dens_mat)
 
-        dense_matrix = curr_dens_mat.todense()  # Or use .toarray()
-
-        # Get the diagonal elements (probabilities)
-        probabilities = np.real(np.diagonal(dense_matrix))
-
-
-        # Generate the basis states
-        num_qubits = int(np.log2(len(probabilities)))  # Calculate the number of qubits
-        states = [f"{i:0{num_qubits}b}" for i in range(len(probabilities))]  # Binary strings
-        
-        # Map probabilities to states
-        probabilities_by_state = dict(zip(states, probabilities))
-        
-        # Display results
-        print("State Probabilities:")
-        for state, prob in probabilities_by_state.items():
-            print(f"State {state}: Probability {prob:.4f}")
-
-
-    
         # check convergence
         if curr_layer == max_depth or abs(ham_approx_ratios[-1]-ham_approx_ratios[-2]) < etol:
             not_converged = False
@@ -164,19 +141,11 @@ def run_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, max_depth, beta_0=0
         'cut_approx_ratios' : cut_approx_ratios,
         'ham_approx_ratios' : ham_approx_ratios,
         'best_mixers' : mixer_list,
-        'Probabilities': probabilities,
         'best_mixer_parameters' : mixer_params,
         'best_ham_parameters' : ham_params,
         'all_mixers' : all_mixers_per_layer_dict
     }
 
-    # # Added by Katie
-    # print("\nFinal Results:")
-    # print("Cut Approximation Ratios:", cut_approx_ratios)
-    # print("Hamiltonian Approximation Ratios:", ham_approx_ratios)
-    # print("Best Mixers:", mixer_list)
-    # print("Best Mixer Parameters:", mixer_params)
-    # print("Best Hamiltonian Parameters:", ham_params)
     return data
 
 def run_dynamic_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, pauli_mixers_split_ops_dict, max_depth, beta_0=0.0, gamma_tilde = 0.1, rel_gtol = 10**-2, delta_1 = 0.0, delta_2=1e-8, etol=-1):
@@ -216,7 +185,7 @@ def run_dynamic_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, pauli_mixer
     max_ham_value = max_cut_solution[2]
     ham_offset = max_cut_value - max_ham_value
 
-    hamiltonian = build_operators.cut_hamiltonian(graph)[0]
+    hamiltonian = build_operators.cut_hamiltonian(graph)
 
     mixer_params = []
     mixer_list = []
@@ -246,24 +215,21 @@ def run_dynamic_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, pauli_mixer
 
     not_converged = True
     while not_converged:
-        use_ham_unitary = False 
 
         curr_layer += 1
 
         print("Finding Best Mixer for layer " + str(curr_layer) + "...")
         all_mixer_gradients = useful_methods.find_mixer_gradients(curr_dens_mat, gradient_ops_dict, pauli_ops_dict, graph, apply_ham_unitary=False)
-        print("this is the mixers and grad", all_mixer_gradients[1:])
-        best_mixer = all_mixer_gradients[1:][0][0]
-        print("this is the best mixer", best_mixer)
-        best_mixer_gradient = all_mixer_gradients[1:][1][1]
+
+        best_mixer = all_mixer_gradients[0][0]
+        best_mixer_gradient = all_mixer_gradients[0][1]
         if curr_layer > 1 and prev_best_mixer == best_mixer:
 
-            best_mixer = all_mixer_gradients[1:][1][0]
-            print("this is the best mixer222222", best_mixer)
-            best_mixer_gradient = all_mixer_gradients[1:][1][1]
+            best_mixer = all_mixer_gradients[1][0]
+            best_mixer_gradient = all_mixer_gradients[1][1]
 
         print('\tThe best mixer for layer ' + str(curr_layer) + ' with no Hamiltonian unitary is ' + best_mixer + ' with a gradient of ' + str(best_mixer_gradient))
-       
+
         if 'standard' not in best_mixer: # can only perform analysis below for single Pauli string mixers
 
             # determine whether having not Hamiltonian unitary would correspond to a local maximum
@@ -345,26 +311,6 @@ def run_dynamic_adapt_qaoa(graph, pauli_ops_dict, gradient_ops_dict, pauli_mixer
         cut_approx_ratio = (curr_ham_estimate + ham_offset) / max_cut_value
         cut_approx_ratios.append(cut_approx_ratio)
         print('\nCurrent Cut Approximation Ratio:', cut_approx_ratio)
-
-        dense_matrix = curr_dens_mat.todense()  # Or use .toarray()
-
-        # Get the diagonal elements (probabilities)
-        probabilities = np.real(np.diagonal(dense_matrix))
-
-
-        # Generate the basis states
-        num_qubits = int(np.log2(len(probabilities)))  # Calculate the number of qubits
-        states = [f"{i:0{num_qubits}b}" for i in range(len(probabilities))]  # Binary strings
-        
-        # Map probabilities to states
-        probabilities_by_state = dict(zip(states, probabilities))
-        
-        # Display results
-        print("State Probabilities:")
-        for state, prob in probabilities_by_state.items():
-            print(f"State {state}: Probability {prob:.4f}")
-
-
 
         # check convergence
         if curr_layer == max_depth or abs(ham_approx_ratios[-1]-ham_approx_ratios[-2]) < etol:
@@ -737,7 +683,7 @@ def run_standard_qaoa(graph, depth, pauli_ops_dict, gamma_0=0.01, beta_0 = 0.0):
     max_cut_value = max_cut_solution[1]
     max_ham_eigenvalue = max_cut_solution[2]
 
-    hamiltonian = build_operators.cut_hamiltonian(graph)[0] #I added the [0]
+    hamiltonian = build_operators.cut_hamiltonian(graph)
     hamiltonian_expectation = None
 
     def obj_func(parameter_values):
@@ -755,16 +701,12 @@ def run_standard_qaoa(graph, depth, pauli_ops_dict, gamma_0=0.01, beta_0 = 0.0):
     hamiltonian_expectation = (hamiltonian * dens_mat).trace().real
     ham_approx_ratio = hamiltonian_expectation / max_ham_eigenvalue
     cut_approx_ratio = (hamiltonian_expectation + max_cut_value - max_ham_eigenvalue) / max_cut_value
-    # probabilities = np.real(np.diagonal(dens_mat))
-    # print(dens_mat)
-
 
     data = {
         'cut_approx_ratio' : cut_approx_ratio,
         'ham_approx_ratio' : ham_approx_ratio,
         'optimised_Hamiltonian_unitary_parameters' : parameter_list[:depth],
         'optimised_mixer_unitary_parameters' : parameter_list[depth:],
-        # 'Probabilities' : probabilities,
     }
 
     return data

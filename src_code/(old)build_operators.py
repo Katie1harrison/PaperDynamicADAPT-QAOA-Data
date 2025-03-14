@@ -58,12 +58,10 @@ def cut_hamiltonian(graph):
                 pauli_strings[index] = tmp_str
                 coeffs[index] = (-0.5) * graph.get_edge_data(i, k)['weight']
                 index += 1
-                
-    # print("these are the graph pauli strings",pauli_strings)
+
     hamiltonian_operator = qi.SparsePauliOp(pauli_strings, np.array(coeffs)).to_operator()
 
-    return sparse.csr_matrix(hamiltonian_operator.data), pauli_strings
-
+    return sparse.csr_matrix(hamiltonian_operator.data)
 
 def cut_unitary(graph, parameter, dict_paulis):
     """
@@ -156,7 +154,7 @@ def build_adapt_qaoa_ansatz(graph, mixer_params, mixer_list, ham_params, pauli_d
     
     no_qubits = graph.number_of_nodes()
     dens_mat = initial_density_matrix(no_qubits)
-    # print('this is the den_mat before applying cut_unitary', dens_mat)
+
     ham_unitaries_count = 0
     
     for layer in range(no_layers):
@@ -166,28 +164,11 @@ def build_adapt_qaoa_ansatz(graph, mixer_params, mixer_list, ham_params, pauli_d
             cut_unit = cut_unitary(graph, ham_params[ham_unitaries_count], dict_paulis=pauli_dict)
             dens_mat = (cut_unit * dens_mat) * (cut_unit.transpose().conj())
             ham_unitaries_count += 1
-            # print('this is the cut_unitary',cut_unit)
-            # print('dens_mat after cut_unitary is applied',dens_mat)
-            
             if noisy:
                 dens_mat = useful_methods.noisy_ham_unitary_evolution(dens_mat, noise_prob=noise_prob, graph=graph, pauli_dict=pauli_dict)
-        
-        # If you want to add the initializtion
-        # Define the single-qubit Hadamard matrix
-        H = (1 / np.sqrt(2)) * np.array([[1, 1], [1, -1]])
-        
-        # Compute the 3-qubit Hadamard operation by taking the Kronecker product
-        H_3_qubits = np.kron(np.kron(H, H), H)  # H ⊗ H ⊗ H for an 8x8 matrix
-        
-        
+
         mix_unit = mixer_unitary(mixer_list[layer], mixer_params[layer], dict_paulis=pauli_dict, no_nodes=no_qubits)
         dens_mat = (mix_unit * dens_mat) * (mix_unit.transpose().conj())
-        # print('this is the mixer_unitary',mix_unit)
-        # print('dens_mat after mixer_unitary is applied',dens_mat)
-        # print('this is the Circuit Unitary',mix_unit*cut_unit *H_3_qubits)
-        # print('this is the Circuit Unitary',mix_unit*cut_unit)
-
-        
         if noisy:
             dens_mat = useful_methods.noisy_mixer_unitary_evolution(dens_mat, noise_prob, mixer_list[layer], pauli_dict=pauli_dict)
 

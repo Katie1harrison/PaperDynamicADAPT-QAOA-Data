@@ -1,4 +1,11 @@
+#NOTES for JI
 
+1. To get started, open and run the Packge_demonstration file.
+2. To run the code you have to choose the number of nodes for the graph, and the number of layers.
+3. src_code is where the Adapt QAOA functions are stored.
+4. something is not quite right with the ordering of the layers because when I go above 2layers, I get 66% fidelity instead of 99. We faced this problem previously, and I can't recall how we fixed it, I think it might be one of 2 things. either the order of layers should be swapped, or it has to do with the hadamard gates initialization at the beginning.
+
+Please send me questions as they arise, and I will also try and fix them.
 # Quantum Approximate Optimization Algorithms in Python
 
 This is a package build in Python which lets users run versions of quantum algorithms used to solve the max-cut problem from graph theory, namely QAOAs. Three types of algorithms are supported:

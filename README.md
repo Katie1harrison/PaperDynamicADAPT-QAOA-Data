@@ -1,5 +1,5 @@
 
-# Quantum Approximate Optimisation Algorithms in Python
+# Quantum Approximate Optimization Algorithms in Python
 
 This is a package build in Python which lets users run versions of quantum algorithms used to solve the max-cut problem from graph theory, namely QAOAs. Three types of algorithms are supported:
 - Standard QAOA
